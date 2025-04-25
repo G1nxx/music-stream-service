@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
-	_ "music-stream-service/domain/entities"
+	"log/slog"	
 	"music-stream-service/internal/config"
 	"music-stream-service/internal/lib/logger/sl"
 	_ "music-stream-service/internal/storage"
 	"music-stream-service/internal/storage/postgresql"
 	"os"
 )
-
 
 const (
 	envLocal = "local"
@@ -26,7 +24,6 @@ const (
 	dbname   = "music-stream-service"
 )
 
-
 func main() {
 	os.Setenv("CONFIG_PATH", "config/local.yaml")
 
@@ -40,14 +37,16 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	// TODO: init storage: postgreSQL
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s " +
-        "password=%s dbname=%s sslmode=disable",
-        host, port, user, password, dbname)
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
 
 	storage, err := postgresql.New(psqlInfo)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
+	} else {
+		log.Info("storage successfully initiated", slog.String("env", cfg.Env))
 	}
 	_ = storage
 
