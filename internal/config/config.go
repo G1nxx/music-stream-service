@@ -9,15 +9,45 @@ import (
 )
 
 type Config struct {
-	Env 		string `yaml:"env" env-default:"local" env-required:"true"`
-	StoragePath string `yaml:"storage_path" env-required:"true"`
-	HTTPServer  	   `yaml:"http_server"`
+	Env         string `yaml:"env" env-default:"local" env-required:"true"`
+	HTTPServer  `yaml:"HTTPServer"`
+	DBServer    `yaml:"DBServer"`
+	S3Config    `yaml:"S3Config"`
+	RedisConfig `yaml:"RedisConfig"`
 }
 
 type HTTPServer struct {
-	Address		string 		  `yaml:"address" env-default:"localhost:8080"`
-	Timeout		time.Duration `yaml:"timeout" env-default:"4s"`
-	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+	Host        string        `yaml:"Host" env-default:"localhost"`
+	Port        string        `yaml:"Port" env-default:"8080"`
+	Timeout     time.Duration `yaml:"Timeout" env-default:"4s"`
+	IdleTimeout time.Duration `yaml:"IdleTimeout" env-default:"60s"`
+}
+
+type DBServer struct {
+	Host     string `yaml:"Host" env-default:"localhost"`
+	Port     int    `yaml:"Port" env-default:"5432"`
+	Username string `yaml:"Username" env-required:"true"`
+	DBName   string `yaml:"DBName" env-required:"true"`
+	SSLMode  string `yaml:"SSLMode" env-default:"disable"`
+	Password string `yaml:"Password" env-required:"true"`
+}
+type S3Config struct {
+	Region          string `yaml:"Region" env-required:"true"`
+	AccessKeyID     string `yaml:"AccessKeyID" env-required:"true"`
+	SecretAccessKey string `yaml:"SecretAccessKey" env-required:"true"`
+	Endpoint        string `yaml:"Endpoint"`
+	DisableSSL      bool   `yaml:"DisableSSL"`
+	ForcePathStyle  bool   `yaml:"ForcePathStyle"`
+}
+
+type RedisConfig struct {
+	Addr        string        `yaml:"Addr" env-required:"true"`
+	Password    string        `yaml:"Password" env-required:"true"`
+	User        string        `yaml:"User" env-required:"true"`
+	DB          int           `yaml:"DB" env-default:"0"`
+	MaxRetries  int           `yaml:"MaxRetries" env-default:"5"`
+	DialTimeout time.Duration `yaml:"DialTimeout" env-default:"10s"`
+	Timeout     time.Duration `yaml:"Timeout" env-default:"5s"`
 }
 
 func MustLoad() *Config {

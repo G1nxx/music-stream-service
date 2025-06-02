@@ -26,3 +26,8 @@ go.work.sum
 
 # vs-code conf
 .vscode
+
+# tests
+tests
+front/
+files/

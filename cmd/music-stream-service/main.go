@@ -1,27 +1,23 @@
 package main
 
 import (
-	"fmt"
-	"log/slog"	
+	"log/slog"
+	"music-stream-service/controllers"
 	"music-stream-service/internal/config"
 	"music-stream-service/internal/lib/logger/sl"
-	_ "music-stream-service/internal/storage"
-	"music-stream-service/internal/storage/postgresql"
+	_ "music-stream-service/internal/repositories"
+	"music-stream-service/internal/repositories/postgresql"
+	"music-stream-service/service"
+	"net/http"
 	"os"
+
+	"github.com/rs/cors"
 )
 
 const (
 	envLocal = "local"
 	envDev   = "dev"
 	envProd  = "prod"
-)
-
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "G1nxx"
-	password = "password1"
-	dbname   = "music-stream-service"
 )
 
 func main() {
@@ -36,31 +32,63 @@ func main() {
 	log.Info("starting music-stream-service", slog.String("env", cfg.Env))
 	log.Debug("debug messages are enabled")
 
-	// TODO: init storage: postgreSQL
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-
-	storage, err := postgresql.New(psqlInfo)
+	db, err := postgresql.New(cfg.DBServer)
 	if err != nil {
-		log.Error("failed to init storage", sl.Err(err))
+		log.Error("failed to init database", sl.Err(err))
 		os.Exit(1)
 	} else {
-		log.Info("storage successfully initiated", slog.String("env", cfg.Env))
+		log.Info("database successfully initiated", slog.String("env", cfg.Env))
 	}
-	_ = storage
-
-	//var user e.User = e.User{Id: 2, Login: "G2", Email: "g@2", Paswdhash: "32345678"}
-
-	// err = storage.CreateUser(user)
-	// if err != nil {
-	// 	log.Error("failed to create user", sl.Err(err))
-	// 	os.Exit(1)
-	// }
 
 	// TODO: init router: chi, "chi render"
 
 	// TODO: run server
+	//!!!
+	repos := service.NewRepository(db, cfg, log)
+	serv, err := service.NewService(*repos, log)
+	if err != nil {
+		log.Error("failed to init service", sl.Err(err))
+	}
+
+	controllers := controllers.NewController(serv)
+
+	mux := http.NewServeMux()
+
+	frontFS := http.FileServer(http.Dir("front"))
+	mux.Handle("/", frontFS)
+
+	mediaFS := http.FileServer(http.Dir("files"))
+	mux.Handle("/files/", http.StripPrefix("/files/", mediaFS))
+
+	mux.HandleFunc("/music", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "front/music.html")
+	})
+
+	mux.HandleFunc("/subs", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "front/subs.html")
+	})
+
+	// API routes
+	controllers.RegisterRoutes(mux)
+
+	muxHandler := cors.New(
+		cors.Options{
+			AllowedOrigins: []string{"http://localhost:3243"},
+			AllowedHeaders: []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization"},
+			AllowedMethods: []string{"GET", "POST", "PUT", "UPDATE", "DELETE", "OPTIONS"},
+		},
+	).Handler(mux)
+
+	addr := "localhost:8080"
+	log.Info("Starting server on " + addr)
+	if err := http.ListenAndServe(addr, muxHandler); err != nil {
+		log.Error("failed to start server", sl.Err(err))
+		os.Exit(1)
+	}
+
+	// fs = http.FileServer(http.Dir("front"))
+	// http.Handle("/", fs)
+	// sl.Err(http.ListenAndServe(":8080", nil))
 }
 
 func setupLogger(env string) *slog.Logger {

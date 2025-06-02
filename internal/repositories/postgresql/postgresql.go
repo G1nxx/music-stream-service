@@ -3,17 +3,21 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
-	e "music-stream-service/domain/entities/users"
+	"music-stream-service/internal/config"
+
+	//rep "music-stream-service/service/repository"
 
 	_ "github.com/lib/pq"
 )
 
-type Storage struct {
-	DB *sql.DB
-}
 
-func New(psqlInfo string) (*Storage, error) {
+func New(dbServer config.DBServer) (*sql.DB, error) {
 	const op = "storage.postgresql.new"
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=%s",
+		dbServer.Host, dbServer.Port, dbServer.Username, 
+		dbServer.Password, dbServer.DBName, dbServer.SSLMode)
 
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
@@ -30,10 +34,10 @@ func New(psqlInfo string) (*Storage, error) {
 		return nil, err
 	}
 
-	err = newTableAuthors(db)
-	if err != nil {
-		return nil, err
-	}
+	// err = newTableAuthors(db)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	err = newTableAlbums(db)
 	if err != nil {
@@ -45,7 +49,7 @@ func New(psqlInfo string) (*Storage, error) {
 		return nil, err
 	}
 
-	err = newTableUsersToAuthors(db)
+	err = newTableUsersToUsers(db)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +69,7 @@ func New(psqlInfo string) (*Storage, error) {
 		return nil, err
 	}
 
-	return &Storage{DB: db}, nil
+	return db, nil
 }
 
 func newTableTracksToPlaylists(db *sql.DB) error {
@@ -79,7 +83,8 @@ func newTableTracksToPlaylists(db *sql.DB) error {
 		FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
 		FOREIGN KEY (track_id)	  REFERENCES tracks(id)	   ON DELETE CASCADE
 	);
-	`);	if err != nil {
+	`)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -102,7 +107,8 @@ func newTableUsersToPlaylists(db *sql.DB) error {
 		FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
 		FOREIGN KEY (user_id)	  REFERENCES users(id)	   ON DELETE CASCADE
 	);
-	`);	if err != nil {
+	`)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -125,7 +131,8 @@ func newTableUsersToAlbums(db *sql.DB) error {
 		FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE,
 		FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE
 	);
-	`);	if err != nil {
+	`)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -137,18 +144,44 @@ func newTableUsersToAlbums(db *sql.DB) error {
 	return nil
 }
 
-func newTableUsersToAuthors(db *sql.DB) error {
-	const op = "storage.postgresql.newtableuserstoauthors"
+// func newTableUsersToAuthors(db *sql.DB) error {
+// 	const op = "storage.postgresql.newtableuserstoauthors"
+
+// 	stmt, err := db.Prepare(`
+// 	CREATE TABLE IF NOT EXISTS users_authors (
+// 		author_id BIGINT NOT NULL,
+// 		user_id BIGINT NOT NULL,
+// 		PRIMARY KEY (author_id, user_id),
+// 		FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE,
+// 		FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+// 	);
+// 	`)
+// 	if err != nil {
+// 		return fmt.Errorf("%s: %w", op, err)
+// 	}
+
+// 	_, err = stmt.Exec()
+// 	if err != nil {
+// 		return fmt.Errorf("%s: %w", op, err)
+// 	}
+
+// 	return nil
+// }
+
+func newTableUsersToUsers(db *sql.DB) error {
+	const op = "storage.postgresql.newtableuserstousers"
 
 	stmt, err := db.Prepare(`
-	CREATE TABLE IF NOT EXISTS users_authors (
-		author_id BIGINT NOT NULL,
-		user_id BIGINT NOT NULL,
-		PRIMARY KEY (author_id, user_id),
-		FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE,
-		FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+	CREATE TABLE IF NOT EXISTS users_users (
+		first_user_id  BIGINT NOT NULL,
+		second_user_id BIGINT NOT NULL,
+		added_at       TIMESTAMP,
+		PRIMARY KEY (first_user_id, second_user_id),
+		FOREIGN KEY (first_user_id)  REFERENCES users(id) ON DELETE CASCADE,
+		FOREIGN KEY (second_user_id) REFERENCES users(id) ON DELETE CASCADE
 	);
-	`);	if err != nil {
+	`)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -160,26 +193,27 @@ func newTableUsersToAuthors(db *sql.DB) error {
 	return nil
 }
 
-func newTableAuthors(db *sql.DB) error {
-	const op = "storage.postgresql.newtableauthors"
+// func newTableAuthors(db *sql.DB) error {
+// 	const op = "storage.postgresql.newtableauthors"
 
-	stmt, err := db.Prepare(`
-	CREATE TABLE IF NOT EXISTS "authors" (
-		id             INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-		user_id		   INTEGER REFERENCES users(id) ON DELETE CASCADE,
-		verified	   BOOLEAN
-	);
-	`);	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
+// 	stmt, err := db.Prepare(`
+// 	CREATE TABLE IF NOT EXISTS "authors" (
+// 		id             INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+// 		user_id		   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+// 		verified	   BOOLEAN
+// 	);
+// 	`)
+// 	if err != nil {
+// 		return fmt.Errorf("%s: %w", op, err)
+// 	}
 
-	_, err = stmt.Exec()
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
+// 	_, err = stmt.Exec()
+// 	if err != nil {
+// 		return fmt.Errorf("%s: %w", op, err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func newTableAlbums(db *sql.DB) error {
 	const op = "storage.postgresql.newtablealbums"
@@ -187,15 +221,16 @@ func newTableAlbums(db *sql.DB) error {
 	stmt, err := db.Prepare(`
 	CREATE TABLE IF NOT EXISTS "albums" (
 		id             INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-		name           TEXT    NOT NULL,
-		author_id 	   INTEGER REFERENCES  authors(id) ON DELETE CASCADE,
+		name           TEXT    NOT NULL CHECK (name <> ''),
+		author_id 	   INTEGER REFERENCES users(id) ON DELETE CASCADE,
 		genre          TEXT,
 		length_sec     INTEGER,
 		recording_date TIMESTAMP,
 		cover_path     TEXT    NOT NULL,
 		type           TEXT
 	);
-	`);	if err != nil {
+	`)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -213,19 +248,20 @@ func newTableTraks(db *sql.DB) error {
 	stmt, err := db.Prepare(`
 	CREATE TABLE IF NOT EXISTS "tracks" (
 		id             INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-		name           TEXT    NOT NULL,
-		album_id	   INTEGER REFERENCES albums(id)  ON DELETE CASCADE,
-		author_id 	   INTEGER REFERENCES  authors(id) ON DELETE CASCADE,
+		name           TEXT    NOT NULL CHECK (name <> ''),
+		album_id	   INTEGER REFERENCES albums(id) ON DELETE CASCADE,
+		author_id 	   INTEGER REFERENCES users(id)  ON DELETE CASCADE,
 		genre          TEXT,
 		length_sec     INTEGER,
 		recording_date TIMESTAMP,
 		size_in_bytes  INTEGER,
 		number         SMALLINT,
 		format         TEXT,
-		path           TEXT    NOT NULL,
-		cover_path     TEXT    NOT NULL
+		path           TEXT    NOT NULL CHECK (path <> ''),
+		cover_path     TEXT
 	);
-	`);	if err != nil {
+	`)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -242,12 +278,15 @@ func newTableUsers(db *sql.DB) error {
 
 	stmt, err := db.Prepare(`
 	CREATE TABLE IF NOT EXISTS "users" (
-		id        INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-		login 	  TEXT    NOT NULL,
-		email 	  TEXT    NOT NULL UNIQUE,
-		pswd_hash TEXT	  NOT NULL
+		id        INTEGER 	PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+		login 	  TEXT    	NOT NULL CHECK (login <> ''),
+		email 	  TEXT    	NOT NULL UNIQUE CHECK (email <> ''),	
+		pswd_hash TEXT	  	NOT NULL CHECK (pswd_hash <> ''),
+		role	  SMALLINT,
+		pic_path  TEXT
 	);
-	`);	if err != nil {
+	`)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -260,38 +299,25 @@ func newTableUsers(db *sql.DB) error {
 }
 
 func newTablePlaylists(db *sql.DB) error {
-	const op = "storage.postgresql.newtableusers"
+	const op = "storage.postgresql.newtableplaylists"
 
 	stmt, err := db.Prepare(`
 	CREATE TABLE IF NOT EXISTS "playlists" (
 		id        		INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-		name 	  		TEXT    NOT NULL,
-		discription 	TEXT    NOT NULL,
+		name 	  		TEXT    NOT NULL CHECK (name <> ''),
 		creator_id 		INTEGER REFERENCES users(id) ON DELETE CASCADE,
-		creation_time 	TIMESTAMP
+		length_sec      INTEGER,
+		creation_time 	TIMESTAMP,
+		cover_path		TEXT,
+		attached_to     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+		description 	TEXT 	NOT NULL
 	);
-	`);	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	_, err = stmt.Exec()
+	`)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	return nil
-}
-
-func (s *Storage) CreateUser(user e.User) error {
-	const op = "storage.postgresql.createuser"
-
-	stmt, err := s.DB.Prepare(`
-    INSERT INTO users(id, login, email, paswdhash) VALUES($1, $2, $3, $4);
-	`);	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	_, err = stmt.Exec(user.Id, user.Login, user.Email, user.PswdHash)
+	_, err = stmt.Exec()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
