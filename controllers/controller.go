@@ -23,12 +23,8 @@ func (authController *AuthController) registerAuthorization(mux *http.ServeMux) 
 }
 
 func (UserController *UserController) registerUserActivity(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/user/subs/to_user", UserController.SubscribeToUser)
-	mux.HandleFunc("POST /api/user/subs/from_user", UserController.UnsubscribeFromUser)
-	mux.HandleFunc("POST /api/user/subs/to_album", UserController.SubscribeToAlbum)
-	mux.HandleFunc("POST /api/user/subs/from_album", UserController.UnsubscribeFromAlbum)
-	mux.HandleFunc("POST /api/user/subs/to_playlist", UserController.SubscribeToPlaylist)
-	mux.HandleFunc("POST /api/user/subs/from_playlist", UserController.UnsubscribeFromPlaylist)
+	mux.HandleFunc("POST /api/user/subs/to_content", UserController.SubscribeToContent)
+	mux.HandleFunc("POST /api/user/subs/from_content", UserController.UnsubscribeFromContent)
 	mux.HandleFunc("POST /api/user/subs/track_to_playlist", UserController.AddTrackToPlaylist)
 	mux.HandleFunc("POST /api/user/subs/track_from_playlist", UserController.RemoveTrackFromPlaylist)
 }
@@ -38,6 +34,8 @@ func (MusicInfoController *MusicInfoController) registerMusicInfo(mux *http.Serv
 	mux.HandleFunc("POST /api/user/get_album_info", MusicInfoController.GetAlbumInfoByAlbumId)
 	mux.HandleFunc("POST /api/user/get_playlist_info", MusicInfoController.GetPlaylistInfoByPlaylistId)
 	mux.HandleFunc("POST /api/user/get_artist_info", MusicInfoController.GetArtistInfoByArtistId)
+	mux.HandleFunc("POST /api/user/get_liked_songs", MusicInfoController.GetLikedSongsByUserId)
+	mux.HandleFunc("POST /api/user/get_follow_status", MusicInfoController.GetFollowStatusByUserId)
 }
 
 func NewController(serv *service.Service) *Controller {

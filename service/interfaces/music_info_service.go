@@ -19,4 +19,10 @@ type MusicInfoActivity interface {
 	GetReleasesFromArtist(artistId int64) ([]resp.AlbumInListModel, error)
 	GetArtistInfo(artistId int64) (*resp.ArtistModel, error)
 	GetArtistAttachment(artistId int64) (*resp.PlaylistViewModel, error)
+
+	GetLikedSongs(userId int64) (*resp.PlaylistViewModel, error)
+
+	GetIsFollowedArtist(uId, cId int64) (bool, error)
+	GetIsFollowedAlbum(uId, cId int64) (bool, error)
+	GetIsFollowedPlaylist(uId, cId int64) (bool, error)
 }

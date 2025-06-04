@@ -16,3 +16,13 @@ type TracksFromPlaylistModel struct {
 type ReleasesFromArtistModel struct {
 	ArtistId string `json:"artist_id" binding:"required"`
 }
+
+type LikedSongsModel struct {	
+	UserId string `json:"user_id" binding:"required"`
+}
+
+type FollowStatusModel struct {	
+	UserId string `json:"user_id" binding:"required"`
+	ContentId string `json:"content_id" binding:"required"`
+	Type string `json:"type" binding:"required"`
+}

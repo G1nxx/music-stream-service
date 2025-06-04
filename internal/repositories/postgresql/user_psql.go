@@ -133,7 +133,7 @@ func (userRepo *UserPostgres) UnsubscribeFromPlaylist(userId, playlistId int64) 
 	const op = "repositories.user_psql.unsubscribefromplaylist"
 
 	stmt, err := userRepo.DB.Prepare(`
-        DELETE FROM users_users 
+        DELETE FROM users_playlists 
         WHERE user_id = $1 AND playlist_id = $2;
     `)
 	if err != nil {
@@ -179,7 +179,7 @@ func (userRepo *UserPostgres) RemoveTrackFromPlaylist(trackId, playlistId int64)
 	const op = "repositories.user_psql.removetrackfromplaylist"
 
 	stmt, err := userRepo.DB.Prepare(`
-        DELETE FROM users_users 
+        DELETE FROM tracks_playlists 
         WHERE track_id = $1 AND playlist_id = $2;
     `)
 	if err != nil {

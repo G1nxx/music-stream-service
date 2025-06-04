@@ -214,17 +214,30 @@ func (miRepo *MusicInfoPostgres) GetAllPlaylists(userId int64) ([]e.Playlist, er
 			return nil, fmt.Errorf("%s: failed to scan playlist: %w", op, err)
 		}
 
-		authorQuery := `
-			SELECT login 
-			FROM users 
-			WHERE id = $1
-    	`
-		var creatorName string
-		err = miRepo.DB.QueryRow(authorQuery, playlist.CreatorID).Scan(&creatorName)
-		if err != nil {
-			return nil, fmt.Errorf("%s: failed to get author name: %w", op, err)
+		if playlist.Name == "Liked Songs" {
+			var count int64
+			err := miRepo.DB.QueryRow(`
+				SELECT COUNT(track_id) FROM tracks_playlists WHERE playlist_id = $1
+			`, playlist.ID).Scan(&count)
+			if err != nil {
+				playlist.CreatorName = "♡"
+			} else {
+				playlist.CreatorName = fmt.Sprintf("%d song%s", count, map[bool]string{true: "", false: "s"}[count == 1])
+			}
+		} else {
+			authorQuery := `
+				SELECT login 
+				FROM users 
+				WHERE id = $1
+			`
+
+			var creatorName string
+			err = miRepo.DB.QueryRow(authorQuery, playlist.CreatorID).Scan(&creatorName)
+			if err != nil {
+				return nil, fmt.Errorf("%s: failed to get author name: %w", op, err)
+			}
+			playlist.CreatorName = creatorName
 		}
-		playlist.CreatorName = creatorName
 		playlists = append(playlists, playlist)
 	}
 	return playlists, nil
@@ -381,7 +394,7 @@ func (miRepo *MusicInfoPostgres) GetTracksFromPlaylist(playlistId int64) ([]e.Tr
 	defer rows.Close()
 
 	var trackIDs []int64
-	addedAts := make(map[int64]time.Time) // Инициализация map
+	addedAts := make(map[int64]time.Time)
 	for rows.Next() {
 		var trackID int64
 		var addedAt time.Time
@@ -551,7 +564,7 @@ func (miRepo *MusicInfoPostgres) GetReleasesFromArtist(artistId int64) ([]e.Albu
         FROM albums 
         WHERE author_id = $1
     `
-	
+
 	rows, err := miRepo.DB.Query(albumIdsQuery, artistId)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to get artist releases: %w", op, err)
@@ -651,10 +664,10 @@ func (miRepo *MusicInfoPostgres) GetArtistAttachmentId(artistId int64) (int64, e
 	playlistQuery := `
         SELECT id
         FROM playlists 
-        WHERE attached_to = $1
+        WHERE attached_to = $1 AND NOT name = $2
     `
 
-	playlistRows, err := miRepo.DB.Query(playlistQuery, artistId)
+	playlistRows, err := miRepo.DB.Query(playlistQuery, artistId, "Liked Songs")
 	if err != nil {
 		return 0, fmt.Errorf("%s: failed to get playlist info: %w", op, err)
 	}
@@ -667,4 +680,84 @@ func (miRepo *MusicInfoPostgres) GetArtistAttachmentId(artistId int64) (int64, e
 	}
 
 	return playlistId, nil
+}
+
+func (miRepo *MusicInfoPostgres) GetlikedSongsId(userId int64) (int64, error) {
+	const op = "repositories.musicinfo_psql.GetArtistAttachmentId"
+
+	playlistQuery := `
+        SELECT id
+        FROM playlists 
+        WHERE attached_to = $1 AND name = $2
+    `
+
+	playlistRows, err := miRepo.DB.Query(playlistQuery, userId, "Liked Songs")
+	if err != nil {
+		return 0, fmt.Errorf("%s: failed to get playlist info: %w", op, err)
+	}
+	defer playlistRows.Close()
+
+	playlistRows.Next()
+	var playlistId int64
+	if err := playlistRows.Scan(&playlistId); err != nil {
+		return 0, fmt.Errorf("%s: failed to scan user id: %w", op, err)
+	}
+
+	return playlistId, nil
+}
+
+func (miRepo *MusicInfoPostgres) GetIsFollowedArtist(uId, cId int64) (bool, error) {
+	const op = "repositories.musicinfo_psql.GetIsFollowedArtist"
+
+	 query := `
+        SELECT EXISTS(
+            SELECT 1 
+            FROM users_users
+            WHERE first_user_id = $1 AND second_user_id = $2
+        )`
+    
+    var isFollowed bool
+    err := miRepo.DB.QueryRow(query, uId, cId).Scan(&isFollowed)
+    if err != nil {
+        return false, fmt.Errorf("%s: failed to check follow status: %w", op, err)
+    }
+
+    return isFollowed, nil
+}
+
+func (miRepo *MusicInfoPostgres) GetIsFollowedAlbum(uId, cId int64) (bool, error) {
+	const op = "repositories.musicinfo_psql.GetIsFollowedAlbum"
+
+	 query := `
+        SELECT EXISTS(
+            SELECT 1 
+            FROM users_albums
+            WHERE user_id = $1 AND album_id = $2
+        )`
+    
+    var isFollowed bool
+    err := miRepo.DB.QueryRow(query, uId, cId).Scan(&isFollowed)
+    if err != nil {
+        return false, fmt.Errorf("%s: failed to check follow status: %w", op, err)
+    }
+
+    return isFollowed, nil
+}
+func (miRepo *MusicInfoPostgres) GetIsFollowedPlaylist(uId, cId int64) (bool, error) {
+	const op = "repositories.musicinfo_psql.GetIsFollowedPlaylist"
+
+	 query := `
+        SELECT EXISTS(
+            SELECT 1 
+            FROM users_playlists
+            WHERE user_id = $1 AND playlist_id = $2
+        )`
+    
+    var isFollowed bool
+    err := miRepo.DB.QueryRow(query, uId, cId).Scan(&isFollowed)
+    if err != nil {
+        return false, fmt.Errorf("%s: failed to check follow status: %w", op, err)
+    }
+
+    return isFollowed, nil
 }

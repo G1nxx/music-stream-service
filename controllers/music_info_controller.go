@@ -139,7 +139,7 @@ func (controller *MusicInfoController) GetAlbumInfoByAlbumId(writer http.Respons
 
 	id, err := strconv.ParseInt(r.AlbumId, 10, 64)
 	if err != nil {
-		http.Error(writer, `{"error": "Vrong AlbumId type, must be number"}`, http.StatusBadRequest)
+		http.Error(writer, `{"error": "Wrong AlbumId type, must be number"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -154,12 +154,8 @@ func (controller *MusicInfoController) GetAlbumInfoByAlbumId(writer http.Respons
 		http.Error(writer, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
 		return
 	}
-	type AlbumResponse struct {
-		Album  response.AlbumViewModel     `json:"album"`
-		Tracks []response.TrackInSubsModel `json:"tracks"`
-	}
 
-	resp := AlbumResponse{
+	resp := response.AlbumResponse{
 		Album:  *albumInfo,
 		Tracks: tracks,
 	}
@@ -189,7 +185,7 @@ func (controller *MusicInfoController) GetPlaylistInfoByPlaylistId(writer http.R
 
 	id, err := strconv.ParseInt(r.PlaylistId, 10, 64)
 	if err != nil {
-		http.Error(writer, `{"error": "Vrong PlaylistId type, must be number"}`, http.StatusBadRequest)
+		http.Error(writer, `{"error": "Wrong PlaylistId type, must be number"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -211,12 +207,7 @@ func (controller *MusicInfoController) GetPlaylistInfoByPlaylistId(writer http.R
 		// return
 	}
 
-	type PlaylistResponse struct {
-		Playlist response.PlaylistViewModel  `json:"playlist"`
-		Tracks   []response.TrackInSubsModel `json:"tracks"`
-	}
-
-	resp := PlaylistResponse{
+	resp := response.PlaylistResponse{
 		Playlist: *playlistInfo,
 		Tracks:   tracks,
 	}
@@ -246,7 +237,7 @@ func (controller *MusicInfoController) GetArtistInfoByArtistId(writer http.Respo
 
 	id, err := strconv.ParseInt(r.ArtistId, 10, 64)
 	if err != nil {
-		http.Error(writer, `{"error": "Vrong ArtistId type, must be number"}`, http.StatusBadRequest)
+		http.Error(writer, `{"error": "Wrong ArtistId type, must be number"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -274,14 +265,7 @@ func (controller *MusicInfoController) GetArtistInfoByArtistId(writer http.Respo
 		return
 	}
 
-	type ArtistResponse struct {
-		Artist     response.ArtistModel        `json:"artist"`
-		Releases   []response.AlbumInListModel `json:"releases"`
-		Attachment response.PlaylistViewModel  `json:"attached"`
-		Tracks     []response.TrackInSubsModel `json:"tracks"`
-	}
-
-	resp := ArtistResponse{
+	resp := response.ArtistResponse{
 		Artist:     *artistInfo,
 		Releases:   releases,
 		Attachment: *attachedPlaylist,
@@ -291,6 +275,110 @@ func (controller *MusicInfoController) GetArtistInfoByArtistId(writer http.Respo
 	jsonData, err := json.Marshal(resp)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, "failed to marshal tracks_in_artist data")
+		return
+	}
+
+	controllerResponse.InfoResponse(writer, http.StatusOK, jsonData)
+}
+
+func (controller *MusicInfoController) GetLikedSongsByUserId(writer http.ResponseWriter, req *http.Request) {
+	var r request.LikedSongsModel
+
+	err := json.NewDecoder(req.Body).Decode(&r)
+	if err != nil {
+		http.Error(writer, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if r.UserId == "" {
+		http.Error(writer, `{"error": "UserId is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(r.UserId, 10, 64)
+	if err != nil {
+		http.Error(writer, `{"error": "Wrong UserId type, must be number"}`, http.StatusBadRequest)
+		return
+	}
+
+	LikedSongs, err := controller.service.GetLikedSongs(id)
+	if err != nil {
+		http.Error(writer, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	tracks, err := controller.service.GetTracksFromPlaylist(id)
+	if err != nil {
+		http.Error(writer, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	resp := response.PlaylistResponse{
+		Playlist: *LikedSongs,
+		Tracks:   tracks,
+	}
+
+	jsonData, err := json.Marshal(resp)
+	if err != nil {
+		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, "failed to marshal liked_songs data")
+		return
+	}
+
+	controllerResponse.InfoResponse(writer, http.StatusOK, jsonData)
+}
+
+func (controller *MusicInfoController) GetFollowStatusByUserId(writer http.ResponseWriter, req *http.Request) {
+	var r request.FollowStatusModel
+
+	err := json.NewDecoder(req.Body).Decode(&r)
+	if err != nil {
+		http.Error(writer, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if r.UserId == "" {
+		http.Error(writer, `{"error": "UserId is required"}`, http.StatusBadRequest)
+		return
+	}
+	if r.ContentId == "" {
+		http.Error(writer, `{"error": "ContentId is required"}`, http.StatusBadRequest)
+		return
+	}
+	if r.Type == "" {
+		http.Error(writer, `{"error": "Type is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	uId, err := strconv.ParseInt(r.UserId, 10, 64)
+	if err != nil {
+		http.Error(writer, `{"error": "Wrong UserId type, must be number"}`, http.StatusBadRequest)
+		return
+	}
+	cId, err := strconv.ParseInt(r.ContentId, 10, 64)
+	if err != nil {
+		http.Error(writer, `{"error": "Wrong UserId type, must be number"}`, http.StatusBadRequest)
+		return
+	}
+
+	var isFoloving bool
+	switch r.Type {
+	case "Artist":
+		isFoloving, err = controller.service.GetIsFollowedArtist(uId, cId)
+	case "Album":
+		isFoloving, err = controller.service.GetIsFollowedAlbum(uId, cId)
+	case "Playlist":
+		isFoloving, err = controller.service.GetIsFollowedPlaylist(uId, cId)
+	default:
+		err = fmt.Errorf("%s", "Wrong subscription Type")
+	}
+	if err != nil {
+		http.Error(writer, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	jsonData, err := json.Marshal(isFoloving)
+	if err != nil {
+		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, "failed to marshal is_folowing data")
 		return
 	}
 

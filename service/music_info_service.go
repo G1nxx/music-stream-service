@@ -434,3 +434,128 @@ func (mi *MusicInfoService) GetArtistAttachment(artistId int64) (*resp.PlaylistV
 	)
 	return model, nil
 }
+
+func (mi *MusicInfoService) GetLikedSongs(userId int64) (*resp.PlaylistViewModel, error) {
+	mi.Log.Debug("Getting liked songs playlist",
+		"userId", userId,
+	)
+
+	plstID, err := mi.repo.GetLikedSongsId(userId)
+	if err != nil {
+		mi.Log.Error("Failed to get liked songs playlist id",
+			"userId", userId,
+			"error", err,
+		)
+		return nil, err
+	}
+
+	mi.Log.Info("Liked songs playlist id collected",
+		"userId", userId,
+		"playlistId", plstID,
+	)
+
+	plst, err := mi.repo.GetPlaylist(plstID)
+	if err != nil {
+		mi.Log.Error("Failed to get liked songs playlist info",
+			"userId", userId,
+			"playlistId", plst.ID,
+			"error", err,
+		)
+		return nil, err
+	}
+
+	mi.Log.Info("Liked songs playlist info collected",
+		"userId", userId,
+		"playlistId", plst.ID,
+	)
+
+	model, err := mpr.ToPlaylistViewModel(*plst)
+	if err != nil {
+		mi.Log.Debug("The liked songs playlist info is not correct",
+			"userId", userId,
+			"playlistId", plst.ID,
+			"error", err,
+		)
+	}
+
+	mi.Log.Info("Liked songs playlist info sent",
+		"userId", userId,
+		"playlistId", plst.ID,
+	)
+	return model, nil
+}
+
+func (mi *MusicInfoService) GetIsFollowedArtist(uId, cId int64) (bool, error) {
+	mi.Log.Debug("Getting is followed artist",
+		"userId", uId,
+		"artistId", cId,
+	)
+
+	isFoloving, err := mi.repo.GetIsFollowedArtist(uId, cId)
+	if err != nil {
+		mi.Log.Error("Failed to get is followed artist",
+			"userId", uId,
+			"artistId", cId,
+			"error", err,
+		)
+		return false, err
+	}
+
+	mi.Log.Info("Is followed artist collected and sent",
+		"userId", uId,
+		"artistId", cId,
+		"isFollowing", isFoloving,
+	)
+
+	return isFoloving, nil
+}
+
+func (mi *MusicInfoService) GetIsFollowedAlbum(uId, cId int64) (bool, error) {
+	mi.Log.Debug("Getting is followed album",
+		"userId", uId,
+		"albumId", cId,
+	)
+
+	isFoloving, err := mi.repo.GetIsFollowedAlbum(uId, cId)
+	if err != nil {
+		mi.Log.Error("Failed to get is followed album",
+			"userId", uId,
+			"albumId", cId,
+			"error", err,
+		)
+		return false, err
+	}
+
+	mi.Log.Info("Is followed album collected and sent",
+		"userId", uId,
+		"albumId", cId,
+		"isFollowing", isFoloving,
+	)
+
+	return isFoloving, nil
+}
+
+func (mi *MusicInfoService) GetIsFollowedPlaylist(uId, cId int64) (bool, error) {
+	mi.Log.Debug("Getting is followed playlist",
+		"userId", uId,
+		"playlistId", cId,
+	)
+
+	isFoloving, err := mi.repo.GetIsFollowedPlaylist(uId, cId)
+	if err != nil {
+		mi.Log.Error("Failed to get is followed playlist",
+			"userId", uId,
+			"playlistId", cId,
+			"error", err,
+		)
+		return false, err
+	}
+
+	mi.Log.Info("Is followed playlist collected and sent",
+		"userId", uId,
+		"playlistId", cId,
+		"isFollowing", isFoloving,
+	)
+
+	return isFoloving, nil
+}

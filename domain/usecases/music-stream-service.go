@@ -53,4 +53,10 @@ type MusicInfo interface {
 	GetReleasesFromArtist(artistId int64) ([]e.Album, error)
 	GetArtist(artistId int64) (*e.User, error)
 	GetArtistAttachmentId(artistId int64) (int64, error)
+
+	GetLikedSongsId(userId int64) (int64, error)
+	
+	GetIsFollowedArtist(uId, cId int64) (bool, error)
+	GetIsFollowedAlbum(uId, cId int64) (bool, error)
+	GetIsFollowedPlaylist(uId, cId int64) (bool, error)
 }

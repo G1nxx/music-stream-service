@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"music-stream-service/controllers/middleware"
 	controllerResponse "music-stream-service/controllers/response"
 	"music-stream-service/service/dtos/request"
 	"music-stream-service/service/interfaces"
 	"net/http"
+	"strconv"
 )
 
 type UserController struct {
@@ -22,130 +24,118 @@ func NewUserController(userService interfaces.UserActivity, mware middleware.Mid
 	}
 }
 
-func (controller *UserController) SubscribeToUser(writer http.ResponseWriter, req *http.Request) {
+func (controller *UserController) SubscribeToContent(writer http.ResponseWriter, req *http.Request) {
 	controller.middleware.EnableCors(writer)
-	var input request.UserSubsToUserModel
+
+	var input request.UserSubsToContentModel
 	err := json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
 		return
 	}
-	err = controller.service.SubscribeToUser(input.FirstUserID, input.SecondUserID)
+	
+	uId, err := strconv.ParseInt(input.UserID, 10, 64)
+	if err != nil {
+		http.Error(writer, `{"error": "Wrong UserId type, must be number"}`, http.StatusBadRequest)
+		return
+	}
+	cId, err := strconv.ParseInt(input.ContentID, 10, 64)
+	if err != nil {
+		http.Error(writer, `{"error": "Wrong ContentId type, must be number"}`, http.StatusBadRequest)
+		return
+	}
+
+	switch input.Type {
+	case "Album":
+		err = controller.service.SubscribeToAlbum(uId, cId)
+	case "Artist":
+		err = controller.service.SubscribeToUser(uId, cId)
+	case "Playlist":
+		err = controller.service.SubscribeToPlaylist(uId, cId)
+	default:
+		err = fmt.Errorf("%s", "Wrong subscription content type")
+	}
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	controllerResponse.OkResponse(writer)
 }
 
-func (controller *UserController) UnsubscribeFromUser(writer http.ResponseWriter, req *http.Request) {
+func (controller *UserController) UnsubscribeFromContent(writer http.ResponseWriter, req *http.Request) {
 	controller.middleware.EnableCors(writer)
-	var input request.UserSubsToUserModel
-	err := json.NewDecoder(req.Body).Decode(&input)
-	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
-		return
-	}
-	err = controller.service.UnsubscribeFromUser(input.FirstUserID, input.SecondUserID)
-	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
-		return
-	}
-	controllerResponse.OkResponse(writer)
-}
 
-func (controller *UserController) SubscribeToAlbum(writer http.ResponseWriter, req *http.Request) {
-	controller.middleware.EnableCors(writer)
-	var input request.UserSubsToAlbumModel
+	var input request.UserSubsToContentModel
 	err := json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
 		return
 	}
-	err = controller.service.SubscribeToAlbum(input.UserID, input.AlbumID)
-	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
-		return
-	}
-	controllerResponse.OkResponse(writer)
-}
 
-func (controller *UserController) UnsubscribeFromAlbum(writer http.ResponseWriter, req *http.Request) {
-	controller.middleware.EnableCors(writer)
-	var input request.UserSubsToAlbumModel
-	err := json.NewDecoder(req.Body).Decode(&input)
+	uId, err := strconv.ParseInt(input.UserID, 10, 64)
 	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
+		http.Error(writer, `{"error": "Wrong UserId type, must be number"}`, http.StatusBadRequest)
 		return
 	}
-	err = controller.service.UnsubscribeFromAlbum(input.UserID, input.AlbumID)
+	cId, err := strconv.ParseInt(input.ContentID, 10, 64)
 	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
+		http.Error(writer, `{"error": "Wrong ContentId type, must be number"}`, http.StatusBadRequest)
 		return
 	}
-	controllerResponse.OkResponse(writer)
-}
 
-func (controller *UserController) SubscribeToPlaylist(writer http.ResponseWriter, req *http.Request) {
-	controller.middleware.EnableCors(writer)
-	var input request.UserSubsToPlaylistModel
-	err := json.NewDecoder(req.Body).Decode(&input)
-	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
-		return
+	switch input.Type {
+	case "Album":
+		err = controller.service.UnsubscribeFromAlbum(uId, cId)
+	case "Artist":
+		err = controller.service.UnsubscribeFromUser(uId, cId)
+	case "Playlist":
+		err = controller.service.UnsubscribeFromPlaylist(uId, cId)
+	default:
+		err = fmt.Errorf("%s", "Wrong subscription content type")
 	}
-	err = controller.service.SubscribeToPlaylist(input.UserID, input.PlaylistID)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
 		return
 	}
-	controllerResponse.OkResponse(writer)
-}
 
-func (controller *UserController) UnsubscribeFromPlaylist(writer http.ResponseWriter, req *http.Request) {
-	controller.middleware.EnableCors(writer)
-	var input request.UserSubsToPlaylistModel
-	err := json.NewDecoder(req.Body).Decode(&input)
-	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
-		return
-	}
-	err = controller.service.UnsubscribeFromPlaylist(input.UserID, input.PlaylistID)
-	if err != nil {
-		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
-		return
-	}
 	controllerResponse.OkResponse(writer)
 }
 
 func (controller *UserController) AddTrackToPlaylist(writer http.ResponseWriter, req *http.Request) {
 	controller.middleware.EnableCors(writer)
+
 	var input request.TrackAddsToPlaylistModel
 	err := json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
 		return
 	}
+
 	err = controller.service.AddTrackToPlaylist(input.TrackID, input.PlaylistID)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	controllerResponse.OkResponse(writer)
 }
 
 func (controller *UserController) RemoveTrackFromPlaylist(writer http.ResponseWriter, req *http.Request) {
 	controller.middleware.EnableCors(writer)
+
 	var input request.TrackAddsToPlaylistModel
 	err := json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusBadRequest, err.Error())
 		return
 	}
+
 	err = controller.service.RemoveTrackfromPlaylist(input.TrackID, input.PlaylistID)
 	if err != nil {
 		controllerResponse.NewErrorResponse(writer, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	controllerResponse.OkResponse(writer)
 }
